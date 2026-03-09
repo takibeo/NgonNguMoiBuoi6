@@ -2,56 +2,63 @@ var express = require("express");
 var router = express.Router();
 
 let roleModel = require("../schemas/roles");
+let { checkLogin, isAdmin, isAdminOrMod } = require('../utils/authHandler.js')
 
-
-router.get("/", async function (req, res, next) {
-    let roles = await roleModel.find({ isDeleted: false });
-    res.send(roles);
-});
-
-
-router.get("/:id", async function (req, res, next) {
+// GET - Lấy danh sách role - Admin và Mod
+router.get("/", checkLogin, isAdminOrMod(), async function (req, res, next) {
     try {
-        let result = await roleModel.find({ _id: req.params.id, isDeleted: false });
-        if (result.length > 0) {
-            res.send(result);
-        }
-        else {
-            res.status(404).send({ message: "id not found" });
-        }
+        let roles = await roleModel.find({ isDeleted: false });
+        res.json(roles);
     } catch (error) {
-        res.status(404).send({ message: "id not found" });
+        res.status(500).json({ message: error.message });
     }
 });
 
+// GET - Lấy role theo id - Admin và Mod
+router.get("/:id", checkLogin, isAdminOrMod(), async function (req, res, next) {
+    try {
+        let result = await roleModel.findOne({ _id: req.params.id, isDeleted: false });
+        if (result) {
+            res.json(result);
+        }
+        else {
+            res.status(404).json({ message: "ID không tìm thấy" });
+        }
+    } catch (error) {
+        res.status(404).json({ message: "ID không tìm thấy" });
+    }
+});
 
-router.post("/", async function (req, res, next) {
+// POST - Tạo role mới - Chỉ admin
+router.post("/", checkLogin, isAdmin(), async function (req, res, next) {
     try {
         let newItem = new roleModel({
             name: req.body.name,
             description: req.body.description
         });
         await newItem.save();
-        res.send(newItem);
+        res.status(201).json(newItem);
     } catch (err) {
-        res.status(400).send({ message: err.message });
+        res.status(400).json({ message: err.message });
     }
 });
 
-router.put("/:id", async function (req, res, next) {
+// PUT - Cập nhật role - Chỉ admin
+router.put("/:id", checkLogin, isAdmin(), async function (req, res, next) {
     try {
         let id = req.params.id;
         let updatedItem = await roleModel.findByIdAndUpdate(id, req.body, { new: true });
         if (!updatedItem) {
-            return res.status(404).send({ message: "id not found" });
+            return res.status(404).json({ message: "ID không tìm thấy" });
         }
-        res.send(updatedItem);
+        res.json(updatedItem);
     } catch (err) {
-        res.status(400).send({ message: err.message });
+        res.status(400).json({ message: err.message });
     }
 });
 
-router.delete("/:id", async function (req, res, next) {
+// DELETE - Xóa role - Chỉ admin
+router.delete("/:id", checkLogin, isAdmin(), async function (req, res, next) {
     try {
         let id = req.params.id;
         let updatedItem = await roleModel.findByIdAndUpdate(
@@ -60,11 +67,11 @@ router.delete("/:id", async function (req, res, next) {
             { new: true }
         );
         if (!updatedItem) {
-            return res.status(404).send({ message: "id not found" });
+            return res.status(404).json({ message: "ID không tìm thấy" });
         }
-        res.send(updatedItem);
+        res.json(updatedItem);
     } catch (err) {
-        res.status(400).send({ message: err.message });
+        res.status(400).json({ message: err.message });
     }
 });
 
